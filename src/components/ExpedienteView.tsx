@@ -537,18 +537,6 @@ export const ExpedienteView = () => {
               </button>
             </div>
 
-            {seccionIndividual && (
-              <button
-                type="button"
-                onClick={() => setSeccionIndividual(null)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold rounded-full shadow-xs hover:shadow transition-all cursor-pointer ring-2 ring-red-200"
-                title="Volver a la vista general de 3 columnas"
-              >
-                <ArrowLeftIcon className="w-3.5 h-3.5 text-white" />
-                <span>Volver a 3 Columnas</span>
-              </button>
-            )}
-
             <div className="h-4 w-px bg-slate-200 hidden sm:block" />
 
             <button
@@ -678,18 +666,9 @@ export const ExpedienteView = () => {
                         </h2>
                       </div>
                       <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">{sec.subtitulo}</p>
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
-                        {puedeSubir ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs">
-                            <CheckIcon className="w-2.5 h-2.5" /> Tu Columna Activa • Puedes subir escritos
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-200/90 text-slate-600">
-                            <LockIcon className="w-2.5 h-2.5 text-slate-400" /> Solo consulta y lectura
-                          </span>
-                        )}
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 group-hover/header:underline">
-                          <MaximizeIcon className="w-2.5 h-2.5" /> Ver en grande
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 group-hover/header:text-blue-700 transition-colors">
+                          <MaximizeIcon className="w-2.5 h-2.5" /> Clic para ampliar sección
                         </span>
                       </div>
                     </div>
@@ -942,13 +921,6 @@ export const ExpedienteView = () => {
           const puedeSubir = rolActual === seccionIndividual;
           const isDragTarget = seccionDragOver === seccionIndividual;
 
-          // Solo la sección activa tiene borde de color; de lo contrario borde gris neutro estable
-          const containerBorder = puedeSubir
-            ? secConfig.activeBorder
-            : 'border-2 border-slate-300 shadow-2xs';
-          const headerBg = puedeSubir
-            ? secConfig.activeHeaderBg
-            : 'bg-slate-100/80 border-b border-slate-200';
           const iconToRender = puedeSubir ? secConfig.activeIcon : secConfig.inactiveIcon;
 
           return (
@@ -961,24 +933,44 @@ export const ExpedienteView = () => {
               onDrop={(e) => handleDrop(e, seccionIndividual)}
               className="space-y-6"
             >
-              {/* 1. Encabezado principal de la sección individual con navegación y tabs rápidos */}
-              <div className={`bg-white rounded-xl ${containerBorder} overflow-hidden transition-all duration-200`}>
-                {/* Barra de navegación superior con el único botón de volver */}
-                <div className="p-3 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              {/* Barra de control superior limpia y directa */}
+              <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Izquierda: Único botón rojo para volver + Identificación de la sección */}
+                <div className="flex items-center gap-3.5">
                   <button
                     type="button"
                     onClick={() => setSeccionIndividual(null)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-md hover:shadow-lg transition-all cursor-pointer ring-2 ring-red-200"
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-xs hover:shadow transition-all cursor-pointer shrink-0"
+                    title="Regresar a la vista general de 3 columnas"
                   >
                     <ArrowLeftIcon className="w-4 h-4 text-white" />
-                    <span>Volver al Modo 3 Columnas</span>
+                    <span>Volver a 3 Columnas</span>
                   </button>
 
-                  {/* Selector rápido entre secciones procesales */}
+                  <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+
+                  <div className="min-w-0 flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 shrink-0">
+                      {iconToRender}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-base font-bold text-slate-900 leading-tight">
+                          {secConfig.label}
+                        </h2>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                          {docsSeccion.length} {docsSeccion.length === 1 ? 'escrito' : 'escritos'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-tight mt-0.5 truncate">{secConfig.subtitulo}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Derecha: Pestañas de cambio rápido y botón de subida */}
+                <div className="flex items-center gap-2.5 flex-wrap md:flex-nowrap justify-between md:justify-end">
+                  {/* Selector rápido entre las 3 secciones */}
                   <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 hidden sm:inline">
-                      Sección:
-                    </span>
                     {SECCIONES.map((sec) => {
                       const isActual = seccionIndividual === sec.key;
                       const countSec = documentosFiltrados.filter((d) => d.seccion === sec.key).length;
@@ -987,78 +979,46 @@ export const ExpedienteView = () => {
                           key={sec.key}
                           type="button"
                           onClick={() => setSeccionIndividual(sec.key)}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
                             isActual
                               ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200'
-                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-medium'
                           }`}
+                          title={`Ver columna de ${sec.label}`}
                         >
                           {sec.key === 'autoridad' && <LandmarkIcon className="w-3.5 h-3.5 text-blue-600" />}
                           {sec.key === 'actor' && <UserIcon className="w-3.5 h-3.5 text-emerald-600" />}
                           {sec.key === 'demandado' && <UsersIcon className="w-3.5 h-3.5 text-purple-600" />}
                           <span>{sec.key === 'autoridad' ? 'Autoridad' : sec.key === 'actor' ? 'Actor' : 'Demandado'}</span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 font-semibold">
                             {countSec}
                           </span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
 
-                {/* Banner de título, descripción y acción de carga */}
-                <div className={`p-4 sm:p-6 ${headerBg} flex flex-col md:flex-row md:items-center justify-between gap-4`}>
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white shadow-2xs border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
-                      {iconToRender}
+                  {/* Subir archivo a esta sección si es el rol asignado */}
+                  {puedeSubir ? (
+                    <label
+                      className={`py-2 px-3.5 ${secConfig.btnColor} text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-[0.99] shrink-0`}
+                    >
+                      <PlusIcon className="w-3.5 h-3.5" />
+                      <span>{subiendo ? 'Subiendo...' : 'Subir Escrito (PDF)'}</span>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        className="hidden"
+                        disabled={subiendo}
+                        onChange={(e) => handleSubirArchivoInput(e, seccionIndividual)}
+                      />
+                    </label>
+                  ) : (
+                    <div className="py-1.5 px-2.5 bg-slate-50 rounded-lg text-[11px] text-slate-500 font-medium border border-slate-200 flex items-center gap-1.5 shrink-0">
+                      <LockIcon className="w-3 h-3 text-slate-400" />
+                      <span>Solo lectura</span>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">
-                          {secConfig.label}
-                        </h2>
-                        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-200/80 text-slate-700 border border-slate-300">
-                          {docsSeccion.length} {docsSeccion.length === 1 ? 'escrito' : 'escritos'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 mt-1 leading-snug">{secConfig.subtitulo}</p>
-                      <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                        {puedeSubir ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-600 text-white shadow-xs">
-                            <CheckIcon className="w-3.5 h-3.5" /> Tu Columna Activa • Puedes subir escritos
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
-                            <LockIcon className="w-3.5 h-3.5 text-slate-400" /> Modo consulta • Solo lectura para tu rol ({ROL_LABELS[rolActual]})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Botón de subida si tiene permiso */}
-                  <div className="shrink-0">
-                    {puedeSubir ? (
-                      <label
-                        className={`py-2.5 px-4 ${secConfig.btnColor} text-white rounded-lg text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center justify-center gap-2 active:scale-[0.99]`}
-                      >
-                        <PlusIcon className="w-4 h-4" />
-                        <span>{subiendo ? 'Subiendo escrito...' : 'Subir Escrito a esta Sección (PDF)'}</span>
-                        <input
-                          type="file"
-                          accept="application/pdf"
-                          className="hidden"
-                          disabled={subiendo}
-                          onChange={(e) => handleSubirArchivoInput(e, seccionIndividual)}
-                        />
-                      </label>
-                    ) : (
-                      <div className="py-2 px-3 bg-white/80 rounded-lg text-xs text-slate-500 font-medium border border-slate-200 flex items-center gap-2">
-                        <LockIcon className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Solo la parte autorizada puede subir aquí</span>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
 
