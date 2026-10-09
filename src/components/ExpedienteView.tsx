@@ -33,6 +33,7 @@ import {
   ShareIcon,
   LinkIcon,
   CopyIcon,
+  AlertCircleIcon,
 } from './Icons';
 
 const LIMITE_TAMANO_MB = 50;
@@ -119,6 +120,7 @@ function formatearFechaHora(fechaIso: string): string {
 
 export const ExpedienteView = () => {
   const [rolActual, setRolActual] = useState<RolProcesal>('autoridad');
+  const [nombreUsuario, setNombreUsuario] = useState<string>('');
   const [documentos, setDocumentos] = useState<DocumentoProcesal[]>([]);
   const [docSeleccionado, setDocSeleccionado] = useState<DocumentoProcesal | null>(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -132,6 +134,11 @@ export const ExpedienteView = () => {
   const [eliminando, setEliminando] = useState(false);
   const [modalRolAbierto, setModalRolAbierto] = useState(false);
   const [tempRol, setTempRol] = useState<RolProcesal>('autoridad');
+  const [passwordCambioRol, setPasswordCambioRol] = useState('');
+  const [errorCambioRol, setErrorCambioRol] = useState<string | null>(null);
+  const [cargandoCambioRol, setCargandoCambioRol] = useState(false);
+  const [editandoNombre, setEditandoNombre] = useState('');
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
   const [docACompartir, setDocACompartir] = useState<DocumentoProcesal | null>(null);
   const [enlaceCopiado, setEnlaceCopiado] = useState(false);
 
@@ -148,13 +155,18 @@ export const ExpedienteView = () => {
     }
   };
 
-  // Sincronizar rol recordado en la memoria del dispositivo
+  // Sincronizar rol y nombre recordados en la memoria del dispositivo
   useEffect(() => {
     try {
       const cachedRol = localStorage.getItem('tribunal_rol') as RolProcesal | null;
+      const cachedNombre = localStorage.getItem('tribunal_nombre') || '';
       if (cachedRol === 'autoridad' || cachedRol === 'actor' || cachedRol === 'demandado') {
         setRolActual(cachedRol);
         setTempRol(cachedRol);
+      }
+      if (cachedNombre) {
+        setNombreUsuario(cachedNombre);
+        setEditandoNombre(cachedNombre);
       }
     } catch {
       // Ignorar errores de acceso
@@ -163,17 +175,97 @@ export const ExpedienteView = () => {
 
   const abrirModalRol = () => {
     setTempRol(rolActual);
+    setPasswordCambioRol('');
+    setErrorCambioRol(null);
+    setEditandoNombre(nombreUsuario);
     setModalRolAbierto(true);
   };
 
-  const guardarRol = (e?: React.FormEvent) => {
+  const guardarRol = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    setRolActual(tempRol);
-    try {
-      localStorage.setItem('tribunal_rol', tempRol);
-    } catch (err) {
-      console.error('Error al guardar en almacenamiento local', err);
+    setErrorCambioRol(null);
+
+    // CASO 1: El usuario desea cambiar a otro rol diferente (requiere validar contraseña en Supabase)
+    if (tempRol !== rolActual) {
+      if (!passwordCambioRol.trim()) {
+        setErrorCambioRol('Debes ingresar la contraseña asignada a este rol.');
+        return;
+      }
+
+      setCargandoCambioRol(true);
+      try {
+        const { data: usuario, error: userErr } = await supabase
+          .from('usuarios')
+          .select('*')
+          .eq('rol', tempRol)
+          .maybeSingle();
+
+        if (userErr) throw userErr;
+        if (!usuario) {
+          throw new Error(`No se encontró un usuario configurado para ${ROL_LABELS[tempRol]} en la base de datos.`);
+        }
+
+        if (passwordCambioRol.trim() !== usuario.password.trim()) {
+          throw new Error(`Contraseña incorrecta para el rol de ${ROL_LABELS[tempRol]}.`);
+        }
+
+        // Contraseña correcta: actualizar rol y nombre en sesión y base local
+        setRolActual(tempRol);
+        const nuevoNombre = usuario.nombre || '';
+        setNombreUsuario(nuevoNombre);
+        try {
+          localStorage.setItem('tribunal_rol', tempRol);
+          localStorage.setItem('tribunal_nombre', nuevoNombre);
+          localStorage.setItem('tribunal_user_id', usuario.id || '');
+          window.dispatchEvent(new Event('storage'));
+        } catch (storageErr) {
+          console.error('Error al guardar en almacenamiento local', storageErr);
+        }
+
+        setModalRolAbierto(false);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error al cambiar de rol';
+        setErrorCambioRol(msg);
+      } finally {
+        setCargandoCambioRol(false);
+      }
+      return;
     }
+
+    // CASO 2: Mismo rol, pero el usuario modificó su nombre visible
+    if (editandoNombre.trim() !== nombreUsuario) {
+      setGuardandoNombre(true);
+      try {
+        const nuevoNombre = editandoNombre.trim();
+        const { error: updErr } = await supabase
+          .from('usuarios')
+          .update({
+            nombre: nuevoNombre,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('rol', rolActual);
+
+        if (updErr) throw updErr;
+
+        setNombreUsuario(nuevoNombre);
+        try {
+          localStorage.setItem('tribunal_nombre', nuevoNombre);
+          window.dispatchEvent(new Event('storage'));
+        } catch (storageErr) {
+          console.error('Error al guardar en almacenamiento local', storageErr);
+        }
+
+        setModalRolAbierto(false);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error al actualizar nombre';
+        setErrorCambioRol(msg);
+      } finally {
+        setGuardandoNombre(false);
+      }
+      return;
+    }
+
+    // Sin cambios
     setModalRolAbierto(false);
   };
 
@@ -490,6 +582,11 @@ export const ExpedienteView = () => {
                 <span className="font-bold text-slate-800">
                   {ROL_LABELS[rolActual]}
                 </span>
+                {nombreUsuario && (
+                  <span className="text-slate-500 font-medium hidden sm:inline">
+                    • {nombreUsuario}
+                  </span>
+                )}
               </div>
               <ChevronDownIcon className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors ml-0.5" />
             </button>
@@ -524,7 +621,10 @@ export const ExpedienteView = () => {
                 {rolActual === 'autoridad' && <LandmarkIcon className="w-3.5 h-3.5 text-blue-700" />}
                 {rolActual === 'actor' && <UserIcon className="w-3.5 h-3.5 text-emerald-700" />}
                 {rolActual === 'demandado' && <UsersIcon className="w-3.5 h-3.5 text-purple-700" />}
-                <span>Actuando como: {ROL_LABELS[rolActual]}</span>
+                <span>
+                  Actuando como: {ROL_LABELS[rolActual]}
+                  {nombreUsuario ? ` • ${nombreUsuario}` : ''}
+                </span>
               </span>
               <button
                 type="button"
@@ -1351,6 +1451,55 @@ export const ExpedienteView = () => {
                 </div>
               </div>
 
+              {/* Si seleccionó un rol diferente, solicitar contraseña de ese rol */}
+              {tempRol !== rolActual ? (
+                <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-200/80 space-y-2">
+                  <label className="block text-xs font-bold text-slate-800">
+                    Contraseña para {ROL_LABELS[tempRol]}
+                  </label>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Para cambiar de rol procesal, debes autenticarte con la contraseña propia asignada a esa cuenta.
+                  </p>
+                  <input
+                    type="password"
+                    placeholder={`Ingresa la contraseña de ${ROL_LABELS[tempRol]}...`}
+                    value={passwordCambioRol}
+                    onChange={(e) => {
+                      setPasswordCambioRol(e.target.value);
+                      if (errorCambioRol) setErrorCambioRol(null);
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-hidden focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Nombre o Cargo de la Persona Asignada
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Lic. Roberto Morales (Juez)"
+                    value={editandoNombre}
+                    onChange={(e) => {
+                      setEditandoNombre(e.target.value);
+                      if (errorCambioRol) setErrorCambioRol(null);
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-hidden focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                  />
+                  <p className="text-[11px] text-slate-400 leading-snug">
+                    Se almacena directamente en la base de datos para identificar la titularidad de este rol.
+                  </p>
+                </div>
+              )}
+
+              {errorCambioRol && (
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+                  <AlertCircleIcon className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
+                  <span className="leading-snug">{errorCambioRol}</span>
+                </div>
+              )}
+
               {/* Acciones y Cerrar Sesión */}
               <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
                 <button
@@ -1373,9 +1522,18 @@ export const ExpedienteView = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                    disabled={cargandoCambioRol || guardandoNombre}
+                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    Guardar Rol
+                    {cargandoCambioRol ? (
+                      <span>Verificando...</span>
+                    ) : guardandoNombre ? (
+                      <span>Guardando...</span>
+                    ) : tempRol !== rolActual ? (
+                      <span>Validar y Cambiar</span>
+                    ) : (
+                      <span>Guardar Nombre</span>
+                    )}
                   </button>
                 </div>
               </div>
