@@ -501,48 +501,43 @@ export const ExpedienteView = () => {
             </button>
           </div>
 
-          {/* Selector de modo Cuadrícula vs Lista o botón para volver de vista individual */}
+          {/* Selector de modo Cuadrícula vs Lista */}
           <div className="flex items-center gap-2">
-            {seccionIndividual ? (
+            <span className="text-xs text-slate-400 hidden sm:inline">Vista:</span>
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
               <button
                 type="button"
-                onClick={() => setSeccionIndividual(null)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors cursor-pointer shadow-2xs"
+                onClick={() => {
+                  setSeccionIndividual(null);
+                  setVistaModo('columnas');
+                }}
+                className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  vistaModo === 'columnas' && !seccionIndividual
+                    ? 'bg-white text-slate-800 shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Vista en 3 Columnas Procesales"
               >
-                <ArrowLeftIcon className="w-3.5 h-3.5" />
-                <span>Volver a las 3 Columnas</span>
+                <ColumnsIcon className="w-3.5 h-3.5" />
+                <span>Columnas</span>
               </button>
-            ) : (
-              <>
-                <span className="text-xs text-slate-400 hidden sm:inline">Vista:</span>
-                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                  <button
-                    onClick={() => setVistaModo('columnas')}
-                    className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
-                      vistaModo === 'columnas'
-                        ? 'bg-white text-slate-800 shadow-2xs font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                    title="Vista en 3 Columnas Procesales"
-                  >
-                    <ColumnsIcon className="w-3.5 h-3.5" />
-                    <span>Columnas</span>
-                  </button>
-                  <button
-                    onClick={() => setVistaModo('lista')}
-                    className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
-                      vistaModo === 'lista'
-                        ? 'bg-white text-slate-800 shadow-2xs font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                    title="Vista de Lista Detallada"
-                  >
-                    <ListIcon className="w-3.5 h-3.5" />
-                    <span>Lista</span>
-                  </button>
-                </div>
-              </>
-            )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSeccionIndividual(null);
+                  setVistaModo('lista');
+                }}
+                className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  vistaModo === 'lista' && !seccionIndividual
+                    ? 'bg-white text-slate-800 shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Vista de Lista Detallada"
+              >
+                <ListIcon className="w-3.5 h-3.5" />
+                <span>Lista</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -571,10 +566,10 @@ export const ExpedienteView = () => {
               const puedeSubir = rolActual === sec.key;
               const isDragTarget = seccionDragOver === sec.key;
 
-              // Solo la columna del rol activo tiene borde de color resaltado; las otras dos tienen borde gris
+              // Solo la columna del rol activo tiene borde de color resaltado; las otras dos tienen borde gris estable
               const containerBorder = puedeSubir
                 ? sec.activeBorder
-                : 'border border-slate-300 shadow-2xs';
+                : 'border-2 border-slate-300 shadow-2xs';
               const headerBg = puedeSubir
                 ? sec.activeHeaderBg
                 : 'bg-slate-100/80 border-b border-slate-200';
@@ -857,10 +852,10 @@ export const ExpedienteView = () => {
           const puedeSubir = rolActual === seccionIndividual;
           const isDragTarget = seccionDragOver === seccionIndividual;
 
-          // Solo la sección activa tiene borde y halo de color; de lo contrario borde gris neutro
+          // Solo la sección activa tiene borde de color; de lo contrario borde gris neutro estable
           const containerBorder = puedeSubir
             ? secConfig.activeBorder
-            : 'border border-slate-300 shadow-2xs';
+            : 'border-2 border-slate-300 shadow-2xs';
           const headerBg = puedeSubir
             ? secConfig.activeHeaderBg
             : 'bg-slate-100/80 border-b border-slate-200';
@@ -878,14 +873,14 @@ export const ExpedienteView = () => {
             >
               {/* 1. Encabezado principal de la sección individual con navegación y tabs rápidos */}
               <div className={`bg-white rounded-xl ${containerBorder} overflow-hidden transition-all duration-200`}>
-                {/* Barra de navegación superior */}
+                {/* Barra de navegación superior con el único botón de volver */}
                 <div className="p-3 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                   <button
                     type="button"
                     onClick={() => setSeccionIndividual(null)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors cursor-pointer shadow-2xs"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 transition-colors cursor-pointer shadow-2xs"
                   >
-                    <ArrowLeftIcon className="w-4 h-4" />
+                    <ArrowLeftIcon className="w-3.5 h-3.5 text-slate-500" />
                     <span>Volver a las 3 Columnas</span>
                   </button>
 
@@ -902,9 +897,9 @@ export const ExpedienteView = () => {
                           key={sec.key}
                           type="button"
                           onClick={() => setSeccionIndividual(sec.key)}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                             isActual
-                              ? 'bg-white text-slate-900 shadow-2xs ring-1 ring-slate-300'
+                              ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200'
                               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                           }`}
                         >
@@ -932,7 +927,7 @@ export const ExpedienteView = () => {
                         <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">
                           {secConfig.label}
                         </h2>
-                        <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-white">
+                        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-200/80 text-slate-700 border border-slate-300">
                           {docsSeccion.length} {docsSeccion.length === 1 ? 'escrito' : 'escritos'}
                         </span>
                       </div>
@@ -1074,29 +1069,26 @@ export const ExpedienteView = () => {
                   ))}
                 </div>
               ) : (
-                <div className="py-16 bg-white rounded-xl border border-dashed border-slate-300 text-center flex flex-col items-center justify-center p-6 gap-3">
-                  <FolderEmptyIcon className="w-12 h-12 text-slate-300" />
-                  <h3 className="text-base font-bold text-slate-700">Sin escritos presentados</h3>
-                  <p className="text-xs text-slate-500 max-w-sm">
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (puedeSubir) setSeccionDragOver(seccionIndividual);
+                  }}
+                  onDragLeave={() => setSeccionDragOver(null)}
+                  onDrop={(e) => handleDrop(e, seccionIndividual)}
+                  className={`py-14 bg-white rounded-xl border border-dashed transition-all text-center flex flex-col items-center justify-center p-6 gap-2.5 ${
+                    isDragTarget ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-200' : 'border-slate-300'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-0.5">
+                    <FolderEmptyIcon className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-700">Sin escritos presentados en esta sección</h3>
+                  <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
                     {puedeSubir
-                      ? 'Puedes arrastrar un documento PDF aquí o utilizar el botón superior para subir el primer escrito.'
+                      ? 'Arrastra un archivo PDF directamente aquí o utiliza el botón superior para subir el primer escrito.'
                       : 'No hay documentos registrados en esta sección procesal.'}
                   </p>
-                  {puedeSubir && (
-                    <label
-                      className={`mt-2 py-2 px-4 ${secConfig.btnColor} text-white rounded-lg text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center gap-2`}
-                    >
-                      <PlusIcon className="w-4 h-4" />
-                      <span>Subir Escrito (PDF)</span>
-                      <input
-                        type="file"
-                        accept="application/pdf"
-                        className="hidden"
-                        disabled={subiendo}
-                        onChange={(e) => handleSubirArchivoInput(e, seccionIndividual)}
-                      />
-                    </label>
-                  )}
                 </div>
               )}
             </div>
