@@ -17,8 +17,8 @@ export interface DocumentoProcesal {
 export interface UsuarioProcesal {
   id: string;
   rol: RolProcesal;
-  nombre: string;
   password: string;
+  nombre?: string;
   created_at?: string;
   updated_at?: string;
 }
