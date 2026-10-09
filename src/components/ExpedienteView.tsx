@@ -126,12 +126,10 @@ export const ExpedienteView = () => {
   const [seccionIndividual, setSeccionIndividual] = useState<SeccionProcesal | null>(null);
   const [docAEliminar, setDocAEliminar] = useState<DocumentoProcesal | null>(null);
   const [eliminando, setEliminando] = useState(false);
-  const [nombreUsuario, setNombreUsuario] = useState('');
-  const [modalIdentidadAbierto, setModalIdentidadAbierto] = useState(false);
+  const [modalRolAbierto, setModalRolAbierto] = useState(false);
   const [tempRol, setTempRol] = useState<RolProcesal>('autoridad');
-  const [tempNombre, setTempNombre] = useState('');
 
-  // Sincronizar rol y nombre recordados en la memoria del dispositivo
+  // Sincronizar rol recordado en la memoria del dispositivo
   useEffect(() => {
     try {
       const cachedRol = localStorage.getItem('tribunal_rol') as RolProcesal | null;
@@ -139,37 +137,25 @@ export const ExpedienteView = () => {
         setRolActual(cachedRol);
         setTempRol(cachedRol);
       }
-      const cachedNombre = localStorage.getItem('tribunal_nombre');
-      if (cachedNombre) {
-        setNombreUsuario(cachedNombre);
-        setTempNombre(cachedNombre);
-      }
     } catch {
       // Ignorar errores de acceso
     }
   }, []);
 
-  const abrirModalIdentidad = () => {
+  const abrirModalRol = () => {
     setTempRol(rolActual);
-    setTempNombre(nombreUsuario);
-    setModalIdentidadAbierto(true);
+    setModalRolAbierto(true);
   };
 
-  const guardarIdentidad = (e?: React.FormEvent) => {
+  const guardarRol = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setRolActual(tempRol);
-    setNombreUsuario(tempNombre.trim());
     try {
       localStorage.setItem('tribunal_rol', tempRol);
-      if (tempNombre.trim()) {
-        localStorage.setItem('tribunal_nombre', tempNombre.trim());
-      } else {
-        localStorage.removeItem('tribunal_nombre');
-      }
     } catch (err) {
       console.error('Error al guardar en almacenamiento local', err);
     }
-    setModalIdentidadAbierto(false);
+    setModalRolAbierto(false);
   };
 
   const handleCerrarSesion = () => {
@@ -395,14 +381,18 @@ export const ExpedienteView = () => {
     }
   };
 
-  // Filtrado de documentos por texto y por anotaciones
+  // Filtrado de documentos por texto (insensible a mayúsculas y acentos) y por anotaciones
   const documentosFiltrados = useMemo(() => {
+    const normalizar = (txt: string) =>
+      txt.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const queryNorm = normalizar(busqueda.trim());
+
     return documentos.filter((d) => {
       const coincideTexto =
-        busqueda.trim() === '' ||
-        d.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
-        d.creado_por.toLowerCase().includes(busqueda.toLowerCase()) ||
-        (d.modificado_por && d.modificado_por.toLowerCase().includes(busqueda.toLowerCase()));
+        queryNorm === '' ||
+        normalizar(d.titulo).includes(queryNorm) ||
+        normalizar(d.creado_por).includes(queryNorm) ||
+        (d.modificado_por && normalizar(d.modificado_por).includes(queryNorm));
 
       const coincideAnotado = !filtroSoloAnotados || Boolean(d.modificado_por);
 
@@ -466,9 +456,9 @@ export const ExpedienteView = () => {
           <div className="flex items-center gap-2 w-full md:w-auto justify-end">
             <button
               type="button"
-              onClick={abrirModalIdentidad}
+              onClick={abrirModalRol}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
-              title="Configuración de Rol e Identidad en este equipo"
+              title="Configuración de Rol Procesal en este equipo"
             >
               <div className="flex items-center gap-1.5">
                 <span
@@ -483,11 +473,6 @@ export const ExpedienteView = () => {
                 <span className="font-bold text-slate-800">
                   {ROL_LABELS[rolActual]}
                 </span>
-                {nombreUsuario && (
-                  <span className="text-slate-500 max-w-[130px] truncate hidden sm:inline font-normal">
-                    • {nombreUsuario}
-                  </span>
-                )}
               </div>
               <ChevronDownIcon className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors ml-0.5" />
             </button>
@@ -522,20 +507,29 @@ export const ExpedienteView = () => {
                 {rolActual === 'autoridad' && <LandmarkIcon className="w-3.5 h-3.5 text-blue-700" />}
                 {rolActual === 'actor' && <UserIcon className="w-3.5 h-3.5 text-emerald-700" />}
                 {rolActual === 'demandado' && <UsersIcon className="w-3.5 h-3.5 text-purple-700" />}
-                <span>
-                  Actuando como: {ROL_LABELS[rolActual]}
-                  {nombreUsuario ? ` (${nombreUsuario})` : ''}
-                </span>
+                <span>Actuando como: {ROL_LABELS[rolActual]}</span>
               </span>
               <button
                 type="button"
-                onClick={abrirModalIdentidad}
+                onClick={abrirModalRol}
                 className="text-[11px] text-slate-500 hover:text-blue-700 hover:underline font-semibold cursor-pointer"
-                title="Cambiar rol o nombre en este equipo"
+                title="Cambiar rol procesal en este equipo"
               >
                 (Cambiar)
               </button>
             </div>
+
+            {seccionIndividual && (
+              <button
+                type="button"
+                onClick={() => setSeccionIndividual(null)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold rounded-full shadow-xs hover:shadow transition-all cursor-pointer ring-2 ring-red-200"
+                title="Volver a la vista general de 3 columnas"
+              >
+                <ArrowLeftIcon className="w-3.5 h-3.5 text-white" />
+                <span>Volver a 3 Columnas</span>
+              </button>
+            )}
 
             <div className="h-4 w-px bg-slate-200 hidden sm:block" />
 
@@ -669,7 +663,7 @@ export const ExpedienteView = () => {
                       <div className="mt-2 flex items-center gap-2 flex-wrap">
                         {puedeSubir ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs">
-                            <CheckIcon className="w-2.5 h-2.5" /> Tu Columna Activa{nombreUsuario ? ` (${nombreUsuario})` : ''} • Puedes subir escritos
+                            <CheckIcon className="w-2.5 h-2.5" /> Tu Columna Activa • Puedes subir escritos
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-200/90 text-slate-600">
@@ -734,6 +728,7 @@ export const ExpedienteView = () => {
                           <PdfThumbnail
                             storagePath={doc.storage_path}
                             titulo={doc.titulo}
+                            updatedAt={doc.updated_at}
                             className="w-18 h-24 shrink-0"
                           />
 
@@ -939,10 +934,10 @@ export const ExpedienteView = () => {
                   <button
                     type="button"
                     onClick={() => setSeccionIndividual(null)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 transition-colors cursor-pointer shadow-2xs"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-md hover:shadow-lg transition-all cursor-pointer ring-2 ring-red-200"
                   >
-                    <ArrowLeftIcon className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Volver a las 3 Columnas</span>
+                    <ArrowLeftIcon className="w-4 h-4 text-white" />
+                    <span>Volver al Modo 3 Columnas</span>
                   </button>
 
                   {/* Selector rápido entre secciones procesales */}
@@ -996,7 +991,7 @@ export const ExpedienteView = () => {
                       <div className="mt-2.5 flex items-center gap-2 flex-wrap">
                         {puedeSubir ? (
                           <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-600 text-white shadow-xs">
-                            <CheckIcon className="w-3.5 h-3.5" /> Tu Columna Activa{nombreUsuario ? ` (${nombreUsuario})` : ''} • Puedes subir escritos
+                            <CheckIcon className="w-3.5 h-3.5" /> Tu Columna Activa • Puedes subir escritos
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
@@ -1056,6 +1051,7 @@ export const ExpedienteView = () => {
                         <PdfThumbnail
                           storagePath={doc.storage_path}
                           titulo={doc.titulo}
+                          updatedAt={doc.updated_at}
                           className="w-full h-60 sm:h-64 rounded-lg shadow-2xs"
                           large={true}
                         />
@@ -1247,14 +1243,14 @@ export const ExpedienteView = () => {
         </div>
       )}
 
-      {/* 6. MODAL DISCRETO DE CAMBIO DE ROL E IDENTIDAD EN ESTE DISPOSITIVO */}
-      {modalIdentidadAbierto && (
+      {/* 6. MODAL DISCRETO DE CAMBIO DE ROL PROCESAL EN ESTE DISPOSITIVO */}
+      {modalRolAbierto && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby="modal-identidad-titulo"
+          aria-labelledby="modal-rol-titulo"
           className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-          onClick={() => setModalIdentidadAbierto(false)}
+          onClick={() => setModalRolAbierto(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -1267,17 +1263,17 @@ export const ExpedienteView = () => {
                   <UserCircleIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 id="modal-identidad-titulo" className="text-sm font-bold text-slate-900 leading-tight">
-                    Identidad en este Dispositivo
+                  <h3 id="modal-rol-titulo" className="text-sm font-bold text-slate-900 leading-tight">
+                    Cambiar Rol Procesal
                   </h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Configuración guardada en la memoria local del equipo
+                    Selecciona con qué atribuciones deseas actuar en este equipo
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setModalIdentidadAbierto(false)}
+                onClick={() => setModalRolAbierto(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
                 title="Cerrar"
               >
@@ -1286,7 +1282,7 @@ export const ExpedienteView = () => {
             </div>
 
             {/* Contenido del formulario */}
-            <form onSubmit={guardarIdentidad} className="p-5 space-y-4 text-xs text-slate-600">
+            <form onSubmit={guardarRol} className="p-5 space-y-4 text-xs text-slate-600">
               {/* Selector de Rol */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-2">
@@ -1353,33 +1349,12 @@ export const ExpedienteView = () => {
                 </div>
               </div>
 
-              {/* Nombre o Título Visual */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="modal-nombre" className="text-xs font-bold text-slate-700">
-                    Nombre o Denominación
-                  </label>
-                  <span className="text-[10px] text-slate-400 font-medium">Opcional • Solo visual</span>
-                </div>
-                <input
-                  id="modal-nombre"
-                  type="text"
-                  placeholder="Ej. Lic. Fernando Treviño / Juzgado..."
-                  value={tempNombre}
-                  onChange={(e) => setTempNombre(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
-                />
-                <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                  Este texto es puramente ilustrativo para identificar quién opera este equipo. No afecta permisos técnicos.
-                </p>
-              </div>
-
               {/* Acciones y Cerrar Sesión */}
               <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={handleCerrarSesion}
-                  className="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
                   title="Cerrar sesión en este equipo"
                 >
                   <LogOutIcon className="w-3.5 h-3.5" />
@@ -1389,7 +1364,7 @@ export const ExpedienteView = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setModalIdentidadAbierto(false)}
+                    onClick={() => setModalRolAbierto(false)}
                     className="px-3.5 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                   >
                     Cancelar
@@ -1398,7 +1373,7 @@ export const ExpedienteView = () => {
                     type="submit"
                     className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
                   >
-                    Guardar Identidad
+                    Guardar Rol
                   </button>
                 </div>
               </div>

@@ -36,6 +36,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     let activo = true;
@@ -59,7 +61,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         console.error(err);
         const mensaje = err instanceof Error ? err.message : 'Error desconocido';
         alert(`Error al abrir documento: ${mensaje}`);
-        onClose();
+        onCloseRef.current();
       }
     };
 
@@ -71,18 +73,18 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         URL.revokeObjectURL(urlGenerada);
       }
     };
-  }, [documento.storage_path, onClose]);
+  }, [documento.storage_path]);
 
   // Manejar tecla Escape para cerrar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !guardando) {
-        onClose();
+        onCloseRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [guardando, onClose]);
+  }, [guardando]);
 
   const obtenerPdfAnotadoBytes = useCallback(async (): Promise<Uint8Array | null> => {
     try {

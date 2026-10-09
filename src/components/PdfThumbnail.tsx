@@ -11,6 +11,7 @@ interface PdfThumbnailProps {
   titulo: string;
   className?: string;
   large?: boolean;
+  updatedAt?: string;
 }
 
 export const PdfThumbnail: React.FC<PdfThumbnailProps> = ({
@@ -18,13 +19,16 @@ export const PdfThumbnail: React.FC<PdfThumbnailProps> = ({
   titulo,
   className = 'w-20 h-26',
   large = false,
+  updatedAt,
 }) => {
-  const cacheKey = large ? `${storagePath}-large` : storagePath;
+  const cacheKey = `${storagePath}-${updatedAt || '0'}${large ? '-large' : ''}`;
   const [thumbUrl, setThumbUrl] = useState<string | null>(() => thumbnailCache.get(cacheKey) || null);
   const [cargando, setCargando] = useState(() => !thumbnailCache.has(cacheKey));
 
   useEffect(() => {
     if (thumbnailCache.has(cacheKey)) {
+      setThumbUrl(thumbnailCache.get(cacheKey) || null);
+      setCargando(false);
       return;
     }
 

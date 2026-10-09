@@ -63,20 +63,15 @@ export const LoginGate = ({ children }: { children: React.ReactNode }) => {
   const isSessionAuthed = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [localAuthed, setLocalAuthed] = useState(false);
   const [selectedRole, setSelectedRole] = useState<RolProcesal>('autoridad');
-  const [nombre, setNombre] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
 
-  // Cargar rol y nombre recordados en la memoria del dispositivo
+  // Cargar rol recordado en la memoria del dispositivo
   useEffect(() => {
     try {
       const cachedRole = localStorage.getItem('tribunal_rol') as RolProcesal | null;
       if (cachedRole === 'autoridad' || cachedRole === 'actor' || cachedRole === 'demandado') {
         setSelectedRole(cachedRole);
-      }
-      const cachedNombre = localStorage.getItem('tribunal_nombre');
-      if (cachedNombre) {
-        setNombre(cachedNombre);
       }
     } catch {
       // Ignorar errores de acceso en entornos restringidos
@@ -93,11 +88,7 @@ export const LoginGate = ({ children }: { children: React.ReactNode }) => {
         localStorage.setItem(AUTH_KEY, 'true');
         sessionStorage.setItem(AUTH_KEY, 'true');
         localStorage.setItem('tribunal_rol', selectedRole);
-        if (nombre.trim()) {
-          localStorage.setItem('tribunal_nombre', nombre.trim());
-        } else {
-          localStorage.removeItem('tribunal_nombre');
-        }
+        localStorage.removeItem('tribunal_nombre');
         window.dispatchEvent(new Event('storage'));
       } catch (err) {
         console.error('Error al guardar en almacenamiento local', err);
@@ -172,27 +163,6 @@ export const LoginGate = ({ children }: { children: React.ReactNode }) => {
                   );
                 })}
               </div>
-            </div>
-
-            {/* Nombre o Título Visual */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="gate-nombre" className="text-xs font-semibold text-slate-300">
-                  Nombre o Identificador
-                </label>
-                <span className="text-[10px] text-slate-400 font-normal">Opcional • Solo visual</span>
-              </div>
-              <input
-                id="gate-nombre"
-                type="text"
-                placeholder="Ej. Lic. Fernando Treviño / Juzgado..."
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-800/90 text-slate-100 placeholder-slate-500 text-xs rounded-xl border border-slate-700 focus:outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-              />
-              <p className="text-[10px] text-slate-400 mt-1">
-                Se guardará en este equipo para identificar visualmente tu sesión.
-              </p>
             </div>
 
             {/* Contraseña del Tribunal */}
