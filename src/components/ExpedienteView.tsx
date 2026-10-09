@@ -26,6 +26,9 @@ import {
   ArrowLeftIcon,
   MaximizeIcon,
   TrashIcon,
+  ChevronDownIcon,
+  LogOutIcon,
+  UserCircleIcon,
 } from './Icons';
 
 const LIMITE_TAMANO_MB = 50;
@@ -123,6 +126,68 @@ export const ExpedienteView = () => {
   const [seccionIndividual, setSeccionIndividual] = useState<SeccionProcesal | null>(null);
   const [docAEliminar, setDocAEliminar] = useState<DocumentoProcesal | null>(null);
   const [eliminando, setEliminando] = useState(false);
+  const [nombreUsuario, setNombreUsuario] = useState('');
+  const [modalIdentidadAbierto, setModalIdentidadAbierto] = useState(false);
+  const [tempRol, setTempRol] = useState<RolProcesal>('autoridad');
+  const [tempNombre, setTempNombre] = useState('');
+
+  // Sincronizar rol y nombre recordados en la memoria del dispositivo
+  useEffect(() => {
+    try {
+      const cachedRol = localStorage.getItem('tribunal_rol') as RolProcesal | null;
+      if (cachedRol === 'autoridad' || cachedRol === 'actor' || cachedRol === 'demandado') {
+        setRolActual(cachedRol);
+        setTempRol(cachedRol);
+      }
+      const cachedNombre = localStorage.getItem('tribunal_nombre');
+      if (cachedNombre) {
+        setNombreUsuario(cachedNombre);
+        setTempNombre(cachedNombre);
+      }
+    } catch {
+      // Ignorar errores de acceso
+    }
+  }, []);
+
+  const abrirModalIdentidad = () => {
+    setTempRol(rolActual);
+    setTempNombre(nombreUsuario);
+    setModalIdentidadAbierto(true);
+  };
+
+  const guardarIdentidad = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setRolActual(tempRol);
+    setNombreUsuario(tempNombre.trim());
+    try {
+      localStorage.setItem('tribunal_rol', tempRol);
+      if (tempNombre.trim()) {
+        localStorage.setItem('tribunal_nombre', tempNombre.trim());
+      } else {
+        localStorage.removeItem('tribunal_nombre');
+      }
+    } catch (err) {
+      console.error('Error al guardar en almacenamiento local', err);
+    }
+    setModalIdentidadAbierto(false);
+  };
+
+  const handleCerrarSesion = () => {
+    if (
+      window.confirm(
+        '¿Deseas cerrar sesión en este dispositivo? Deberás ingresar la contraseña nuevamente para acceder.'
+      )
+    ) {
+      try {
+        localStorage.removeItem('tribunal_auth');
+        sessionStorage.removeItem('tribunal_auth');
+        window.dispatchEvent(new Event('storage'));
+      } catch {
+        // Ignorar
+      }
+      window.location.reload();
+    }
+  };
 
   const cargarDocumentos = useCallback(async () => {
     try {
@@ -397,57 +462,40 @@ export const ExpedienteView = () => {
             </div>
           </div>
 
-          {/* Selector de Rol Activo Prominente y Botón de Actualizar */}
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-300 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2 hidden lg:inline">
-                Rol:
-              </span>
-              <button
-                type="button"
-                onClick={() => setRolActual('autoridad')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  rolActual === 'autoridad'
-                    ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-300'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
-                }`}
-                title="Actuar como Autoridad Judicial (Juzgado)"
-              >
-                <LandmarkIcon className="w-3.5 h-3.5" />
-                <span>Autoridad</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRolActual('actor')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  rolActual === 'actor'
-                    ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
-                }`}
-                title="Actuar como Parte Actora"
-              >
-                <UserIcon className="w-3.5 h-3.5" />
-                <span>Parte Actora</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRolActual('demandado')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  rolActual === 'demandado'
-                    ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-300'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
-                }`}
-                title="Actuar como Parte Demandada"
-              >
-                <UsersIcon className="w-3.5 h-3.5" />
-                <span>Parte Demandada</span>
-              </button>
-            </div>
+          {/* Selector de Rol Activo Discreto y Botón de Actualizar */}
+          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+            <button
+              type="button"
+              onClick={abrirModalIdentidad}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
+              title="Configuración de Rol e Identidad en este equipo"
+            >
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    rolActual === 'autoridad'
+                      ? 'bg-blue-600 ring-2 ring-blue-200'
+                      : rolActual === 'actor'
+                      ? 'bg-emerald-600 ring-2 ring-emerald-200'
+                      : 'bg-purple-600 ring-2 ring-purple-200'
+                  }`}
+                />
+                <span className="font-bold text-slate-800">
+                  {ROL_LABELS[rolActual]}
+                </span>
+                {nombreUsuario && (
+                  <span className="text-slate-500 max-w-[130px] truncate hidden sm:inline font-normal">
+                    • {nombreUsuario}
+                  </span>
+                )}
+              </div>
+              <ChevronDownIcon className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors ml-0.5" />
+            </button>
 
             <button
               onClick={() => cargarDocumentos()}
               disabled={cargandoLista}
-              className="p-2 text-slate-600 hover:text-blue-700 hover:bg-slate-100 rounded-lg transition-colors border border-slate-300 shadow-2xs cursor-pointer"
+              className="p-2 text-slate-600 hover:text-blue-700 hover:bg-slate-100 rounded-xl transition-colors border border-slate-300 shadow-2xs cursor-pointer"
               title="Actualizar expediente"
             >
               <RefreshIcon className={`w-4 h-4 ${cargandoLista ? 'animate-spin' : ''}`} />
@@ -459,22 +507,35 @@ export const ExpedienteView = () => {
       {/* 2. SUB-BARRA DE HERRAMIENTAS: CONTADORES, IDENTIDAD ACTIVA Y VISTA */}
       <div className="bg-white border-b border-slate-200 px-4 lg:px-8 py-2">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          {/* Identidad Activa Prominente y Chips de filtro */}
+          {/* Identidad Activa y Chips de filtro */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span
-              className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border shadow-2xs ${
-                rolActual === 'autoridad'
-                  ? 'bg-blue-100 text-blue-900 border-blue-300'
-                  : rolActual === 'actor'
-                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                  : 'bg-purple-100 text-purple-900 border-purple-300'
-              }`}
-            >
-              {rolActual === 'autoridad' && <LandmarkIcon className="w-3.5 h-3.5 text-blue-700" />}
-              {rolActual === 'actor' && <UserIcon className="w-3.5 h-3.5 text-emerald-700" />}
-              {rolActual === 'demandado' && <UsersIcon className="w-3.5 h-3.5 text-purple-700" />}
-              <span>Actuando como: {ROL_LABELS[rolActual]}</span>
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border shadow-2xs ${
+                  rolActual === 'autoridad'
+                    ? 'bg-blue-100 text-blue-900 border-blue-300'
+                    : rolActual === 'actor'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : 'bg-purple-100 text-purple-900 border-purple-300'
+                }`}
+              >
+                {rolActual === 'autoridad' && <LandmarkIcon className="w-3.5 h-3.5 text-blue-700" />}
+                {rolActual === 'actor' && <UserIcon className="w-3.5 h-3.5 text-emerald-700" />}
+                {rolActual === 'demandado' && <UsersIcon className="w-3.5 h-3.5 text-purple-700" />}
+                <span>
+                  Actuando como: {ROL_LABELS[rolActual]}
+                  {nombreUsuario ? ` (${nombreUsuario})` : ''}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={abrirModalIdentidad}
+                className="text-[11px] text-slate-500 hover:text-blue-700 hover:underline font-semibold cursor-pointer"
+                title="Cambiar rol o nombre en este equipo"
+              >
+                (Cambiar)
+              </button>
+            </div>
 
             <div className="h-4 w-px bg-slate-200 hidden sm:block" />
 
@@ -608,7 +669,7 @@ export const ExpedienteView = () => {
                       <div className="mt-2 flex items-center gap-2 flex-wrap">
                         {puedeSubir ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs">
-                            <CheckIcon className="w-2.5 h-2.5" /> Tu Columna Activa • Puedes subir escritos
+                            <CheckIcon className="w-2.5 h-2.5" /> Tu Columna Activa{nombreUsuario ? ` (${nombreUsuario})` : ''} • Puedes subir escritos
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-200/90 text-slate-600">
@@ -935,7 +996,7 @@ export const ExpedienteView = () => {
                       <div className="mt-2.5 flex items-center gap-2 flex-wrap">
                         {puedeSubir ? (
                           <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-600 text-white shadow-xs">
-                            <CheckIcon className="w-3.5 h-3.5" /> Tu Columna Activa • Puedes subir escritos
+                            <CheckIcon className="w-3.5 h-3.5" /> Tu Columna Activa{nombreUsuario ? ` (${nombreUsuario})` : ''} • Puedes subir escritos
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
@@ -1182,6 +1243,166 @@ export const ExpedienteView = () => {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. MODAL DISCRETO DE CAMBIO DE ROL E IDENTIDAD EN ESTE DISPOSITIVO */}
+      {modalIdentidadAbierto && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-identidad-titulo"
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setModalIdentidadAbierto(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
+          >
+            {/* Cabecera del modal */}
+            <div className="p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 shadow-2xs">
+                  <UserCircleIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 id="modal-identidad-titulo" className="text-sm font-bold text-slate-900 leading-tight">
+                    Identidad en este Dispositivo
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Configuración guardada en la memoria local del equipo
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalIdentidadAbierto(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title="Cerrar"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Contenido del formulario */}
+            <form onSubmit={guardarIdentidad} className="p-5 space-y-4 text-xs text-slate-600">
+              {/* Selector de Rol */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">
+                  Rol Procesal Asignado
+                </label>
+                <div className="space-y-2">
+                  {[
+                    {
+                      key: 'autoridad' as RolProcesal,
+                      label: 'Autoridad (Juzgado)',
+                      sub: 'Acuerdos, resoluciones y notificaciones judiciales',
+                      icon: <LandmarkIcon className="w-4 h-4 text-blue-600" />,
+                      borderActive: 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-100',
+                    },
+                    {
+                      key: 'actor' as RolProcesal,
+                      label: 'Parte Actora',
+                      sub: 'Demandas, anexos y escritos de la parte actora',
+                      icon: <UserIcon className="w-4 h-4 text-emerald-600" />,
+                      borderActive: 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-100',
+                    },
+                    {
+                      key: 'demandado' as RolProcesal,
+                      label: 'Parte Demandada',
+                      sub: 'Contestaciones, excepciones y escritos del demandado',
+                      icon: <UsersIcon className="w-4 h-4 text-purple-600" />,
+                      borderActive: 'border-purple-600 bg-purple-50/60 ring-2 ring-purple-100',
+                    },
+                  ].map((op) => {
+                    const selected = tempRol === op.key;
+                    return (
+                      <div
+                        key={op.key}
+                        onClick={() => setTempRol(op.key)}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                          selected
+                            ? op.borderActive
+                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 shadow-2xs flex items-center justify-center shrink-0">
+                            {op.icon}
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-slate-800">
+                              {op.label}
+                            </div>
+                            <div className="text-[11px] text-slate-500 leading-snug">
+                              {op.sub}
+                            </div>
+                          </div>
+                        </div>
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                            selected ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                          }`}
+                        >
+                          {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Nombre o Título Visual */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="modal-nombre" className="text-xs font-bold text-slate-700">
+                    Nombre o Denominación
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium">Opcional • Solo visual</span>
+                </div>
+                <input
+                  id="modal-nombre"
+                  type="text"
+                  placeholder="Ej. Lic. Fernando Treviño / Juzgado..."
+                  value={tempNombre}
+                  onChange={(e) => setTempNombre(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                />
+                <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                  Este texto es puramente ilustrativo para identificar quién opera este equipo. No afecta permisos técnicos.
+                </p>
+              </div>
+
+              {/* Acciones y Cerrar Sesión */}
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleCerrarSesion}
+                  className="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                  title="Cerrar sesión en este equipo"
+                >
+                  <LogOutIcon className="w-3.5 h-3.5" />
+                  <span>Cerrar Sesión</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalIdentidadAbierto(false)}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                  >
+                    Guardar Identidad
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       )}
