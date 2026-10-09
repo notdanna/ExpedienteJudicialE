@@ -29,6 +29,9 @@ import {
   ChevronDownIcon,
   LogOutIcon,
   UserCircleIcon,
+  ShareIcon,
+  LinkIcon,
+  CopyIcon,
 } from './Icons';
 
 const LIMITE_TAMANO_MB = 50;
@@ -128,6 +131,21 @@ export const ExpedienteView = () => {
   const [eliminando, setEliminando] = useState(false);
   const [modalRolAbierto, setModalRolAbierto] = useState(false);
   const [tempRol, setTempRol] = useState<RolProcesal>('autoridad');
+  const [docACompartir, setDocACompartir] = useState<DocumentoProcesal | null>(null);
+  const [enlaceCopiado, setEnlaceCopiado] = useState(false);
+
+  const handleCompartirDocumento = async (e: React.MouseEvent, doc: DocumentoProcesal) => {
+    e.stopPropagation();
+    setDocACompartir(doc);
+    setEnlaceCopiado(false);
+    try {
+      const url = `${window.location.origin}/ver/${doc.id}`;
+      await navigator.clipboard.writeText(url);
+      setEnlaceCopiado(true);
+    } catch {
+      // Ignorar fallo de portapapeles
+    }
+  };
 
   // Sincronizar rol recordado en la memoria del dispositivo
   useEffect(() => {
@@ -774,6 +792,14 @@ export const ExpedienteView = () => {
                               <div className="flex items-center gap-0.5">
                                 <button
                                   type="button"
+                                  onClick={(e) => handleCompartirDocumento(e, doc)}
+                                  className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-1 rounded transition-colors cursor-pointer"
+                                  title="Compartir enlace público de este documento"
+                                >
+                                  <ShareIcon className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={(e) => handleDescargarDirecto(e, doc)}
                                   className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1 rounded transition-colors cursor-pointer"
                                   title="Descargar PDF directamente"
@@ -867,6 +893,14 @@ export const ExpedienteView = () => {
                               className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-semibold transition-colors cursor-pointer"
                             >
                               Ver / Anotar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleCompartirDocumento(e, doc)}
+                              className="p-1 hover:bg-blue-100 rounded text-slate-500 hover:text-blue-700 transition-colors cursor-pointer"
+                              title="Compartir enlace público"
+                            >
+                              <ShareIcon className="w-3.5 h-3.5" />
                             </button>
                             <button
                               type="button"
@@ -1101,6 +1135,15 @@ export const ExpedienteView = () => {
                           >
                             <EyeIcon className="w-3.5 h-3.5" />
                             <span>Ver y Anotar</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => handleCompartirDocumento(e, doc)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-200 hover:border-blue-200 cursor-pointer"
+                            title="Compartir enlace público de este documento"
+                          >
+                            <ShareIcon className="w-3.5 h-3.5" />
                           </button>
 
                           <button
@@ -1378,6 +1421,146 @@ export const ExpedienteView = () => {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 7. MODAL PARA COMPARTIR DOCUMENTO MEDIANTE ENLACE PÚBLICO */}
+      {docACompartir && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-compartir-titulo"
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setDocACompartir(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
+          >
+            {/* Cabecera */}
+            <div className="p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 shadow-2xs">
+                  <ShareIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 id="modal-compartir-titulo" className="text-sm font-bold text-slate-900 leading-tight">
+                    Compartir Escrito
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Enlace de consulta pública de solo lectura
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDocACompartir(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title="Cerrar"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Ficha del escrito */}
+            <div className="p-5 space-y-4 text-xs text-slate-600">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="flex items-center gap-2 font-bold text-slate-900 text-xs">
+                  <FilePdfIcon className="w-4 h-4 text-red-600 shrink-0" />
+                  <span className="truncate">{docACompartir.titulo}</span>
+                </div>
+                <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-200/70">
+                  <span>Sección: <strong className="text-slate-700 capitalize">{docACompartir.seccion}</strong></span>
+                  <span>Presentado por: <strong className="text-slate-700">{ROL_LABELS[docACompartir.creado_por]}</strong></span>
+                </div>
+              </div>
+
+              {/* Caja con el enlace y botón de copiar */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Enlace de Consulta Pública
+                </label>
+                <div className="flex items-center gap-1.5 p-1.5 bg-slate-100 rounded-xl border border-slate-300">
+                  <input
+                    type="text"
+                    readOnly
+                    value={typeof window !== 'undefined' ? `${window.location.origin}/ver/${docACompartir.id}` : ''}
+                    className="flex-1 px-2.5 py-1 text-xs text-slate-800 bg-transparent border-none outline-hidden select-all font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (typeof window !== 'undefined') {
+                        try {
+                          await navigator.clipboard.writeText(`${window.location.origin}/ver/${docACompartir.id}`);
+                          setEnlaceCopiado(true);
+                        } catch {
+                          // ignore
+                        }
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                      enlaceCopiado
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    {enlaceCopiado ? (
+                      <>
+                        <CheckIcon className="w-3.5 h-3.5" />
+                        <span>¡Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <CopyIcon className="w-3.5 h-3.5" />
+                        <span>Copiar</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200/80 text-[11px] text-blue-900 leading-relaxed">
+                Quien reciba este enlace podrá <strong>visualizar y descargar únicamente este escrito</strong> en el visor oficial, sin necesidad de ingresar la contraseña del tribunal ni tener acceso al resto del expediente.
+              </div>
+
+              {/* Botones complementarios */}
+              <div className="pt-2 flex flex-wrap items-center gap-2">
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                    `Adjunto documento del expediente judicial electrónico (${docACompartir.titulo}): ${
+                      typeof window !== 'undefined' ? `${window.location.origin}/ver/${docACompartir.id}` : ''
+                    }`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold text-center transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>Enviar por WhatsApp</span>
+                </a>
+
+                <a
+                  href={typeof window !== 'undefined' ? `/ver/${docACompartir.id}` : '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Abrir vista
+                </a>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setDocACompartir(null)}
+                className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-xs rounded-xl border border-slate-300 transition-colors cursor-pointer shadow-2xs"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

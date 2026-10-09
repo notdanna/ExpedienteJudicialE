@@ -1,7 +1,7 @@
 'use client';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { supabase, DocumentoProcesal, RolProcesal } from '../lib/supabase';
-import { FilePdfIcon, DownloadIcon, CloudUploadIcon, XIcon, TrashIcon } from './Icons';
+import { FilePdfIcon, DownloadIcon, CloudUploadIcon, XIcon, TrashIcon, ShareIcon, CheckIcon } from './Icons';
 
 interface PDFDocumentProxyWithSave {
   saveDocument?: (printToPDF?: unknown) => Promise<Uint8Array>;
@@ -36,8 +36,20 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [copiadoCompartir, setCopiadoCompartir] = useState(false);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  const handleCompartir = async () => {
+    try {
+      const url = `${window.location.origin}/ver/${documento.id}`;
+      await navigator.clipboard.writeText(url);
+      setCopiadoCompartir(true);
+      setTimeout(() => setCopiadoCompartir(false), 2500);
+    } catch {
+      // Fallback
+    }
+  };
 
   useEffect(() => {
     let activo = true;
@@ -217,6 +229,25 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               <span className="hidden sm:inline">Borrar</span>
             </button>
           )}
+
+          <button
+            onClick={handleCompartir}
+            disabled={cargando || guardando}
+            className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            title="Copiar enlace de consulta pública para este documento"
+          >
+            {copiadoCompartir ? (
+              <>
+                <CheckIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-300">¡Copiado!</span>
+              </>
+            ) : (
+              <>
+                <ShareIcon className="w-3.5 h-3.5 text-slate-300" />
+                <span className="hidden sm:inline">Compartir</span>
+              </>
+            )}
+          </button>
 
           <button
             onClick={handleDescargar}
