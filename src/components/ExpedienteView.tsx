@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, DocumentoProcesal, RolProcesal, SeccionProcesal } from '../lib/supabase';
+import { obtenerPdfBlob, invalidarPdfCache } from '../lib/pdfCache';
 import { PdfViewerModal } from './PdfViewerModal';
 import { PdfThumbnail } from './PdfThumbnail';
 import {
@@ -312,12 +313,7 @@ export const ExpedienteView = () => {
   const handleDescargarDirecto = async (e: React.MouseEvent, doc: DocumentoProcesal) => {
     e.stopPropagation();
     try {
-      const { data, error } = await supabase.storage
-        .from('expedientes-pdf')
-        .download(doc.storage_path);
-
-      if (error || !data) throw error || new Error('No se pudo descargar el archivo');
-
+      const data = await obtenerPdfBlob(doc.storage_path);
       const url = URL.createObjectURL(data);
       const link = document.createElement('a');
       link.href = url;
@@ -382,6 +378,9 @@ export const ExpedienteView = () => {
       if (storageError) {
         console.warn('Aviso: el archivo en almacenamiento no pudo borrarse:', storageError.message);
       }
+
+      // Limpiar archivo de la memoria caché
+      invalidarPdfCache(docAEliminar.storage_path);
 
       // Si el visor de PDF estaba abierto con este documento, cerrarlo
       if (docSeleccionado?.id === docAEliminar.id) {

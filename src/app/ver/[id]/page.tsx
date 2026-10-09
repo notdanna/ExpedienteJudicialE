@@ -2,6 +2,7 @@
 import React, { useEffect, useState, use, Suspense } from 'react';
 import Link from 'next/link';
 import { supabase, DocumentoProcesal, RolProcesal } from '@/lib/supabase';
+import { obtenerPdfBlob } from '@/lib/pdfCache';
 import {
   ScaleIcon,
   FilePdfIcon,
@@ -72,14 +73,8 @@ function DocumentoCompartidoInner({
         if (!activo) return;
         setDocumento(docData as DocumentoProcesal);
 
-        // 2. Descargar archivo del storage
-        const { data: fileData, error: fileError } = await supabase.storage
-          .from('expedientes-pdf')
-          .download(docData.storage_path);
-
-        if (fileError || !fileData) {
-          throw new Error('No se pudo descargar el archivo PDF desde el almacenamiento.');
-        }
+        // 2. Descargar archivo del storage con timeout y reintento
+        const fileData = await obtenerPdfBlob(docData.storage_path);
 
         if (!activo) return;
         urlGenerada = URL.createObjectURL(fileData);

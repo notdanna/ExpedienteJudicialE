@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { obtenerPdfBlob } from '../lib/pdfCache';
 import { FilePdfIcon, SearchIcon } from './Icons';
 
 // Cache global en memoria para miniaturas ya generadas (evita volver a descargar)
@@ -36,14 +36,9 @@ export const PdfThumbnail: React.FC<PdfThumbnailProps> = ({
 
     async function generarMiniatura() {
       try {
-        // 1. Descargar datos del archivo desde Supabase Storage
-        const { data, error: downloadError } = await supabase.storage
-          .from('expedientes-pdf')
-          .download(storagePath);
-
-        if (downloadError || !data) {
-          throw downloadError || new Error('No se descargó el PDF');
-        }
+        // 1. Descargar datos del archivo desde Supabase Storage o cache centralizado
+        const data = await obtenerPdfBlob(storagePath);
+        if (!activo) return;
 
         const arrayBuffer = await data.arrayBuffer();
 

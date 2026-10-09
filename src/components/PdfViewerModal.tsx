@@ -1,7 +1,18 @@
 'use client';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { supabase, DocumentoProcesal, RolProcesal } from '../lib/supabase';
-import { FilePdfIcon, DownloadIcon, CloudUploadIcon, XIcon, TrashIcon, ShareIcon, CheckIcon } from './Icons';
+import { obtenerPdfBlob, guardarEnPdfCache } from '../lib/pdfCache';
+import {
+  FilePdfIcon,
+  DownloadIcon,
+  CloudUploadIcon,
+  XIcon,
+  TrashIcon,
+  ShareIcon,
+  CheckIcon,
+  RefreshIcon,
+  AlertCircleIcon,
+} from './Icons';
 
 interface PDFDocumentProxyWithSave {
   saveDocument?: (printToPDF?: unknown) => Promise<Uint8Array>;
@@ -35,6 +46,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [visorListo, setVisorListo] = useState(false);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [copiadoCompartir, setCopiadoCompartir] = useState(false);
   const onCloseRef = useRef(onClose);
@@ -51,41 +64,44 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     }
   };
 
-  useEffect(() => {
-    let activo = true;
-    let urlGenerada = '';
+  const cargarArchivo = useCallback(
+    async (forzarRecarga = false) => {
+      setCargando(true);
+      setErrorCarga(null);
+      setVisorListo(false);
 
-    const descargarArchivo = async () => {
       try {
-        const { data, error } = await supabase.storage
-          .from('expedientes-pdf')
-          .download(documento.storage_path);
+        const data = await obtenerPdfBlob(documento.storage_path, forzarRecarga);
+        const url = URL.createObjectURL(data);
 
-        if (error) throw error;
-        if (!data) throw new Error('No se recibieron datos del archivo');
-
-        urlGenerada = URL.createObjectURL(data);
-        if (activo) {
-          setBlobUrl(urlGenerada);
-          setCargando(false);
-        }
+        setBlobUrl((prevUrl) => {
+          if (prevUrl) {
+            URL.revokeObjectURL(prevUrl);
+          }
+          return url;
+        });
+        setCargando(false);
       } catch (err: unknown) {
-        console.error(err);
-        const mensaje = err instanceof Error ? err.message : 'Error desconocido';
-        alert(`Error al abrir documento: ${mensaje}`);
-        onCloseRef.current();
+        console.error('Error al obtener archivo PDF:', err);
+        const mensaje =
+          err instanceof Error ? err.message : 'Error desconocido al descargar el archivo del servidor';
+        setErrorCarga(mensaje);
+        setCargando(false);
       }
-    };
+    },
+    [documento.storage_path]
+  );
 
-    descargarArchivo();
+  useEffect(() => {
+    cargarArchivo(false);
 
     return () => {
-      activo = false;
-      if (urlGenerada) {
-        URL.revokeObjectURL(urlGenerada);
-      }
+      setBlobUrl((prevUrl) => {
+        if (prevUrl) URL.revokeObjectURL(prevUrl);
+        return null;
+      });
     };
-  }, [documento.storage_path]);
+  }, [cargarArchivo]);
 
   // Manejar tecla Escape para cerrar
   useEffect(() => {
@@ -97,6 +113,35 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [guardando]);
+
+  // Detección de carga del iframe para ocultar spinner interno
+  const handleIframeLoad = () => {
+    const iframeWindow = iframeRef.current?.contentWindow as PDFViewerWindow | null;
+    if (iframeWindow) {
+      let intentos = 0;
+      const verificarApp = () => {
+        intentos++;
+        if (iframeWindow.PDFViewerApplication?.pdfDocument || intentos > 15) {
+          setVisorListo(true);
+        } else {
+          setTimeout(verificarApp, 250);
+        }
+      };
+      verificarApp();
+    } else {
+      setVisorListo(true);
+    }
+  };
+
+  // Temporizador de respaldo por si el visor no reporta evento
+  useEffect(() => {
+    if (blobUrl && !cargando) {
+      const timer = setTimeout(() => {
+        setVisorListo(true);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [blobUrl, cargando]);
 
   const obtenerPdfAnotadoBytes = useCallback(async (): Promise<Uint8Array | null> => {
     try {
@@ -145,6 +190,22 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     URL.revokeObjectURL(downloadUrl);
   };
 
+  const handleDescargarCopiaDirecta = async () => {
+    try {
+      const blob = await obtenerPdfBlob(documento.storage_path);
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${documento.titulo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch {
+      alert('No se pudo descargar la copia en este momento.');
+    }
+  };
+
   const handleGuardarEnNube = async () => {
     setGuardando(true);
     try {
@@ -156,7 +217,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
       const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
 
-      // Upsert a storage con cacheControl: 0 para evitar que el navegador o CDN sirvan la versión desactualizada
+      // Upsert a storage con cacheControl: 0 para evitar versiones cacheadas en CDN
       const { error: uploadError } = await supabase.storage
         .from('expedientes-pdf')
         .upload(documento.storage_path, blob, {
@@ -166,6 +227,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         });
 
       if (uploadError) throw uploadError;
+
+      // Actualizar en el cache local de inmediato para que cargue la versión fresca
+      guardarEnPdfCache(documento.storage_path, blob);
 
       // Actualizar registro en base de datos con el rol y la hora exacta
       const { error: dbError } = await supabase
@@ -251,7 +315,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
           <button
             onClick={handleDescargar}
-            disabled={cargando || guardando}
+            disabled={cargando || guardando || Boolean(errorCarga)}
             className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-2xs"
             title="Descargar PDF con anotaciones a tu equipo"
           >
@@ -261,7 +325,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
           <button
             onClick={handleGuardarEnNube}
-            disabled={guardando || cargando}
+            disabled={guardando || cargando || Boolean(errorCarga)}
             className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer flex items-center gap-1.5 shadow-md hover:shadow-lg"
             title="Guardar notas y resaltados para todas las partes"
           >
@@ -290,19 +354,60 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         </div>
       </header>
 
-      {cargando ? (
+      {errorCarga ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto gap-4">
+          <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 flex items-center justify-center">
+            <AlertCircleIcon className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="text-base font-bold text-slate-100">No se pudo cargar el documento en el visor</h4>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">{errorCarga}</p>
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            <button
+              onClick={() => cargarArchivo(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-md"
+            >
+              <RefreshIcon className="w-3.5 h-3.5" />
+              <span>Reintentar carga</span>
+            </button>
+            <button
+              onClick={handleDescargarCopiaDirecta}
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium border border-slate-700 transition-colors cursor-pointer"
+            >
+              Descargar copia
+            </button>
+            <button
+              onClick={onClose}
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium border border-slate-700 transition-colors cursor-pointer"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      ) : cargando ? (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-300 gap-3">
           <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm font-medium">Cargando documento judicial...</p>
-          <span className="text-xs text-slate-500">Preparando motor de anotaciones y visor PDF.js</span>
+          <span className="text-xs text-slate-500">Recuperando archivo y preparando motor de anotaciones</span>
         </div>
       ) : (
-        <iframe
-          ref={iframeRef}
-          src={viewerUrl}
-          className="w-full flex-1 border-none bg-slate-900"
-          title={`Visor PDF - ${documento.titulo}`}
-        />
+        <div className="relative flex-1 w-full bg-slate-950 flex flex-col overflow-hidden">
+          <iframe
+            ref={iframeRef}
+            src={viewerUrl}
+            onLoad={handleIframeLoad}
+            className="w-full flex-1 border-none bg-slate-900"
+            title={`Visor PDF - ${documento.titulo}`}
+          />
+          {!visorListo && (
+            <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-xs flex flex-col items-center justify-center text-slate-300 gap-3 z-10 pointer-events-none">
+              <div className="w-9 h-9 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm font-semibold text-slate-200">Iniciando visor y herramientas...</p>
+              <span className="text-xs text-slate-400">Cargando páginas y herramientas de resaltado</span>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
